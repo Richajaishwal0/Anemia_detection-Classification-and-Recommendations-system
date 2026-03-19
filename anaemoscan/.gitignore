@@ -1,0 +1,21 @@
+# Node dependencies and frontend build output
+node_modules/
+dist/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Python cache / virtualenv
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Runtime/generated project data
+backend/anemia.db
+ml-service/*.pkl
