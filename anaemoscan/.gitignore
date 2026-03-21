@@ -1,21 +1,40 @@
-# Node dependencies and frontend build output
+# Dependencies
 node_modules/
+
+# Build output
 dist/
 
-# Environment files
+# Environment files — never commit real credentials
 .env
 .env.*
 !.env.example
 
 # Logs
 *.log
+npm-debug.log*
 
 # Python cache / virtualenv
 __pycache__/
 *.py[cod]
+*.pyo
 .venv/
 venv/
+env/
 
-# Runtime/generated project data
-backend/anemia.db
+# SQLite databases
+*.db
+
+# ML model files (large binary files)
 ml-service/*.pkl
+
+# Dataset (sensitive / large)
+ml-service/*.xlsx
+ml-service/*.csv
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
