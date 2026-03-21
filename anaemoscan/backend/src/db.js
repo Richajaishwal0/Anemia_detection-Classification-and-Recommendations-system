@@ -8,6 +8,19 @@ const dbPath = path.join(__dirname, "..", "anemia.db");
 export const db = createClient({ url: `file:${dbPath}` });
 
 export async function initDb() {
+  // create tables first
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS staff (
+      uid TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      role TEXT NOT NULL,
+      department TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      last_seen TEXT NOT NULL DEFAULT (datetime('now'))
+    )
+  `);
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS patients (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -18,9 +31,11 @@ export async function initDb() {
       contact TEXT,
       email TEXT,
       notes TEXT,
+      created_by TEXT,
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
   await db.execute(`
     CREATE TABLE IF NOT EXISTS test_results (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -48,4 +63,8 @@ export async function initDb() {
       created_at TEXT NOT NULL DEFAULT (datetime('now'))
     )
   `);
+
+  // migrations — safe, ignored if column already exists
+  await db.execute(`ALTER TABLE patients ADD COLUMN created_by TEXT`).catch(() => {});
+  await db.execute(`ALTER TABLE test_results ADD COLUMN performed_by TEXT`).catch(() => {});
 }

@@ -23,12 +23,13 @@ router.post("/:id/tests", async (req, res) => {
 
     const prediction = await mlRes.json();
     const body = req.body;
+    const performed_by = req.headers["x-user-id"] || null;
 
     const result = await db.execute({
       sql: `INSERT INTO test_results 
         (patient_id, RBC, HGB, HCT, MCV, MCH, MCHC, RDW, PLT, MPV, PDW, FERRITTE, FOLATE, B12,
-         anemia_detected, anemia_type, risk_level, detection_probability, shap_features, recommendations, summary)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         anemia_detected, anemia_type, risk_level, detection_probability, shap_features, recommendations, summary, performed_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [
         id, body.RBC, body.HGB, body.HCT, body.MCV, body.MCH, body.MCHC,
         body.RDW, body.PLT, body.MPV, body.PDW,
@@ -40,6 +41,7 @@ router.post("/:id/tests", async (req, res) => {
         JSON.stringify(prediction.shap_features),
         JSON.stringify(prediction.recommendations),
         prediction.summary,
+        performed_by,
       ],
     });
 

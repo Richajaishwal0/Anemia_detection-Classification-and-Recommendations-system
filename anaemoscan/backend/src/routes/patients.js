@@ -3,6 +3,21 @@ import { db } from "../db.js";
 
 const router = Router();
 
+router.get("/admin/all", async (req, res) => {
+  try {
+    const rows = await db.execute(`
+      SELECT p.*, COUNT(t.id) as test_count
+      FROM patients p
+      LEFT JOIN test_results t ON t.patient_id = p.id
+      GROUP BY p.id
+      ORDER BY p.created_at DESC
+    `);
+    res.json({ patients: rows.rows });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get("/", async (req, res) => {
   try {
     const { search } = req.query;
@@ -31,10 +46,11 @@ router.post("/", async (req, res) => {
   try {
     const { name, age, gender, blood_group, contact, email, notes } = req.body;
     if (!name || !age || !gender) return res.status(400).json({ error: "name, age, gender are required" });
+    const created_by = req.headers["x-user-id"] || null;
 
     const result = await db.execute({
-      sql: "INSERT INTO patients (name, age, gender, blood_group, contact, email, notes) VALUES (?, ?, ?, ?, ?, ?, ?)",
-      args: [name, age, gender, blood_group || null, contact || null, email || null, notes || null],
+      sql: "INSERT INTO patients (name, age, gender, blood_group, contact, email, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+      args: [name, age, gender, blood_group || null, contact || null, email || null, notes || null, created_by],
     });
 
     const patient = await db.execute({ sql: "SELECT * FROM patients WHERE id = ?", args: [result.lastInsertRowid] });
@@ -59,6 +75,27 @@ router.get("/:id", async (req, res) => {
     }));
 
     res.json({ patient: patientRes.rows[0], tests });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.execute({ sql: "DELETE FROM test_results WHERE patient_id = ?", args: [id] });
+    await db.execute({ sql: "DELETE FROM patients WHERE id = ?", args: [id] });
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete("/:id/tests", async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.execute({ sql: "DELETE FROM test_results WHERE patient_id = ?", args: [id] });
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

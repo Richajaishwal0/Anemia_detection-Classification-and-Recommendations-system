@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from flask import Flask, request, jsonify
 from flask_cors import CORS
+from clinical_rules import get_corrected_prediction
 
 warnings.filterwarnings("ignore")
 
@@ -36,11 +37,7 @@ inv_label_map = load_pkl("inv_label_map")
 best_threshold = load_pkl("best_threshold")
 shap_explainer = load_pkl("shap_explainer")
 
-ANEMIA_TYPE_NAMES = {
-    1: "Iron Deficiency Anemia",
-    2: "Folate / Vitamin B12 Deficiency Anemia",
-    3: "Other Anemia"
-}
+from clinical_rules import ANEMIA_TYPE_NAMES, RECOMMENDATIONS as CLINICAL_RECOMMENDATIONS
 
 RECOMMENDATIONS = {
     "no_anemia": [
@@ -49,45 +46,15 @@ RECOMMENDATIONS = {
         "Stay well hydrated and exercise regularly.",
         "Schedule routine blood tests annually for monitoring."
     ],
-    1: [
-        "Increase dietary iron intake: red meat, legumes, dark leafy greens, fortified cereals.",
-        "Pair iron-rich foods with Vitamin C to enhance absorption.",
-        "Avoid tea/coffee with meals as they inhibit iron absorption.",
-        "Consider iron supplementation under medical supervision.",
-        "Investigate possible sources of chronic blood loss (GI bleeding, heavy menstruation).",
-        "Follow up with a hematologist for further evaluation."
-    ],
-    2: [
-        "Increase intake of folate-rich foods: leafy greens, beans, citrus fruits, fortified grains.",
-        "Consume B12-rich foods: meat, dairy, eggs, and fortified plant-based alternatives.",
-        "If vegetarian/vegan, consider B12 supplementation.",
-        "Consult a physician about folic acid supplements (especially important in pregnancy).",
-        "Avoid excessive alcohol consumption which depletes folate stores.",
-        "Follow up with lab tests to confirm specific deficiency."
-    ],
-    3: [
-        "Consult a hematologist for further evaluation of anemia etiology.",
-        "Additional investigations may include bone marrow examination, EPO levels, or hemoglobin electrophoresis.",
-        "Monitor symptoms: fatigue, pallor, shortness of breath, and heart palpitations.",
-        "Avoid self-medicating; treatment depends on the underlying cause.",
-        "Follow a nutritious diet supportive of hematopoiesis."
-    ]
+    **CLINICAL_RECOMMENDATIONS
 }
 
 
 def get_risk_level(anemia_detected, probability, anemia_type_code=None):
     if not anemia_detected:
-        if probability < 0.3:
-            return "Normal"
-        return "Low Risk"
-    if anemia_type_code == 1:
-        if probability > 0.8:
-            return "High Risk"
-        return "Moderate Risk"
-    if anemia_type_code == 2:
-        if probability > 0.75:
-            return "High Risk"
-        return "Moderate Risk"
+        return "Normal" if probability < 0.3 else "Low Risk"
+    if probability > 0.8:
+        return "High Risk"
     return "Moderate Risk"
 
 
@@ -138,6 +105,7 @@ def predict():
         anemia_type_name = None
         anemia_type_probs = None
         shap_features = []
+        correction = None
 
         has_biomarkers = all(
             data.get(f) is not None and data.get(f) != ""
@@ -160,9 +128,13 @@ def predict():
 
                 proba = xgb_stage2.predict_proba(scaled_full)[0]
                 pred_class = int(np.argmax(proba))
-                anemia_type = inv_label_map[pred_class]
-                anemia_type_name = ANEMIA_TYPE_NAMES[anemia_type]
-                anemia_type_probs = {
+                model_type_code = inv_label_map[pred_class]
+
+                # Apply clinical rule override for Folate/B12 correction
+                correction = get_corrected_prediction(data, model_type_code)
+                anemia_type = correction["type_code"]
+                anemia_type_name = correction["type_name"]
+                anemia_type_probs = correction["override_probs"] or {
                     ANEMIA_TYPE_NAMES[inv_label_map[i]]: float(p)
                     for i, p in enumerate(proba)
                 }
@@ -188,9 +160,11 @@ def predict():
                 except Exception as shap_err:
                     print(f"SHAP error: {shap_err}")
             else:
-                anemia_type = 1
-                anemia_type_name = ANEMIA_TYPE_NAMES[1]
-                anemia_type_probs = {
+                # No biomarkers — apply CBC-only clinical rules
+                correction = get_corrected_prediction(data, 1)
+                anemia_type = correction["type_code"]
+                anemia_type_name = correction["type_name"]
+                anemia_type_probs = correction["override_probs"] or {
                     ANEMIA_TYPE_NAMES[1]: 0.6,
                     ANEMIA_TYPE_NAMES[2]: 0.2,
                     ANEMIA_TYPE_NAMES[3]: 0.2
@@ -212,8 +186,10 @@ def predict():
                     })
 
         risk_level = get_risk_level(anemia_detected, probability, anemia_type)
-        recs_key = anemia_type if anemia_detected else "no_anemia"
-        recommendations = RECOMMENDATIONS.get(recs_key, RECOMMENDATIONS["no_anemia"])
+        if anemia_detected and correction:
+            recommendations = correction["recommendations"]
+        else:
+            recommendations = RECOMMENDATIONS.get("no_anemia")
         summary = generate_summary(anemia_detected, risk_level, anemia_type_name, probability)
 
         return jsonify({

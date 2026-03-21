@@ -23,16 +23,36 @@ const BIOMARKER_FIELDS = [
 
 const MEDICATION_SUGGESTIONS = {
   default: "No medication required; maintain balanced diet.",
-  Iron: "Ferrous sulfate 325mg 2-3x daily, Vitamin C 500mg with each dose.",
-  "Folate": "Folic acid 1mg daily, Cyanocobalamin 1000mcg daily or B12 injections.",
-  "B12": "Folic acid 1mg daily, Cyanocobalamin 1000mcg daily or B12 injections.",
-  Other: "Consult hematologist; may require erythropoietin or other targeted therapy.",
+  Iron: "Ferrous sulfate 325mg 2-3x daily with Vitamin C 500mg to enhance absorption.",
+  Folate: "Folic acid 1mg daily for at least 4 months. Avoid alcohol.",
+  "Vitamin B12": "Cyanocobalamin 1000mcg daily (oral) or IM injections if absorption is impaired.",
 };
 
 const DEMO_VALUES = {
-  RBC: 3.8, HGB: 9.5, HCT: 30, MCV: 72, MCH: 24, MCHC: 31,
-  RDW: 16.5, PLT: 450, MPV: 8.2, PDW: 10,
-  FERRITTE: 8, FOLATE: 10, B12: 400,
+  iron: {
+    label: "Iron Deficiency",
+    RBC: 3.5, HGB: 8.5, HCT: 28, MCV: 68, MCH: 22, MCHC: 30,
+    RDW: 17.5, PLT: 480, MPV: 8.0, PDW: 11,
+    FERRITTE: 5, FOLATE: 8, B12: 350,
+  },
+  folate: {
+    label: "Folate Deficiency",
+    RBC: 3.2, HGB: 9.0, HCT: 29, MCV: 108, MCH: 35, MCHC: 33,
+    RDW: 14.0, PLT: 160, MPV: 9.5, PDW: 12,
+    FERRITTE: 45, FOLATE: 2.1, B12: 320,
+  },
+  normal: {
+    label: "Normal",
+    RBC: 4.8, HGB: 14.5, HCT: 43, MCV: 90, MCH: 30, MCHC: 34,
+    RDW: 13.0, PLT: 260, MPV: 9.5, PDW: 12,
+    FERRITTE: 80, FOLATE: 9.0, B12: 450,
+  },
+  b12: {
+    label: "Vitamin B12 Deficiency",
+    RBC: 3.0, HGB: 8.8, HCT: 27, MCV: 112, MCH: 36, MCHC: 33,
+    RDW: 13.5, PLT: 155, MPV: 9.8, PDW: 12,
+    FERRITTE: 50, FOLATE: 6.5, B12: 95,
+  },
 };
 
 router.get("/config", (_req, res) => {

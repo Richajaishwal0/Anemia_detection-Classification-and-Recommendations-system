@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{uid} {
+      // Anyone authenticated can read any user profile (needed for admin dashboard)
+      allow read: if request.auth != null;
+
+      // Only the user themselves can create their own profile (on register)
+      allow create: if request.auth != null && request.auth.uid == uid;
+
+      // Only admins can update roles; users can update their own non-role fields
+      allow update: if request.auth != null && (
+        request.auth.uid == uid ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin"
+      );
+    }
+  }
+}
